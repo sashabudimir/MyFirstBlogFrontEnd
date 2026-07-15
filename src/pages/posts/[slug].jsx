@@ -1,31 +1,59 @@
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/router'
 import { ArticleLayout } from '@/components/ArticleLayout'
-import { getPost, getPosts } from "@/api/postsApi"
-import { postParameters } from "@/lib/postUtilities"
 
-export async function getStaticPaths() {
-  const posts = await getPosts()
+export default function Post() {
+  const router = useRouter()
+  const { slug } = router.query
 
-  const postParams = posts ? postParameters(posts) : []
+  const [post, setPost] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  return {
-    paths: postParams,
-    fallback: false,
+  useEffect(() => {
+    if (!slug) return
+
+    async function loadPost() {
+      try {
+        const response = await fetch(`http://localhost:5000/posts/${slug}`)
+
+        if (!response.ok) {
+          setPost(null)
+          return
+        }
+
+        const data = await response.json()
+        setPost(data)
+      } catch (error) {
+        console.error(error)
+        setPost(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadPost()
+  }, [slug])
+
+  if (loading) {
+    return (
+      <main style={{ maxWidth: '700px', margin: '80px auto', padding: '24px' }}>
+        <p>Loading post...</p>
+      </main>
+    )
   }
-}
 
-export async function getStaticProps(context) {
-  const currentPost = await getPost(context.params.slug)
-
-  return {
-    props: { post: currentPost || {} },
+  if (!post || !post.title) {
+    return (
+      <main style={{ maxWidth: '700px', margin: '80px auto', padding: '24px' }}>
+        <h1>Post could not be loaded</h1>
+        <p>Please make sure the backend server is running and the post exists.</p>
+      </main>
+    )
   }
-}
-
-export default function Post({ post }) {
 
   const meta = {
     author: 'Spencer Sharp',
-    date: post.createdDate,
+    date: post.createdDate || new Date().toISOString(),
     title: post.title,
     description: post.body,
   }
